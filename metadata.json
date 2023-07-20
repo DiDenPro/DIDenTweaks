@@ -1,0 +1,8 @@
+{
+    "name": "FishingHelper",
+    "creator": "DiDen",
+    "description": "This module is designed for tracking TrophyFish and Sea Creatures.",
+    "version": "1.0.0",
+    "entry": "index.js",
+    "requires": ["PogData"]
+}

@@ -1,7 +1,7 @@
 import { TROPHYFISHES } from "./trophyFishes"
 
 //check for file
-function load(){
+function loadTrophyFishes(){
     return FileLib.read("FishingHelper","obtainedTrophyFishes.json")
 }
 
@@ -10,25 +10,29 @@ function saveData(){
 }
 
 function checkForMissingFishes(){
-    TROPHYFISHES.forEach( tf =>{
-        if(tf.bronze && tf.silver && tf.gold && tf.diamond) return
+    for (var fishKey in TROPHYFISHES) {
+        var fish = TROPHYFISHES[fishKey];
+        if (!fish.bronze.caught || !fish.silver.caught || !fish.gold.caught || !fish.diamond.caught) {
+            let name = `&l${fish.name}&f`;
+            if (!fish.bronze.caught) name += " &8[❂]";
+            if (!fish.silver.caught) name += " &7[❂]";
+            if (!fish.gold.caught) name += " &6[❂]";
+            if (!fish.diamond.caught) name += " &b[❂]";
+            var hoverText = new TextComponent(` > ${name}`).setHoverValue(fish.description);
+            ChatLib.chat(hoverText);
+        }
+      }
+}
 
-        let name = tf.type + "&l" + tf.name + "&f"
-        if(!tf.bronze)
-            name += " &8[❂]"
-        if(!tf.silver)
-            name += " &7[❂]"
-        if(!tf.gold)
-            name += " &6[❂]"
-        if(!tf.diamond)
-            name += " &b[❂]"
-        const hoverText = new TextComponent(" > " + name).setHoverValue(tf.description)
-            ChatLib.chat(hoverText)
-    })
+function getFishByName(itemName){
+    for (var fishName in TROPHYFISHES) {
+        if (TROPHYFISHES[fishName].name === itemName) return TROPHYFISHES[fishName]
+    }
+    return null
 }
 
 //check if the file not exist
-if(!load()){
+if(!loadTrophyFishes()){
     saveData()
 }
 else{
@@ -40,28 +44,27 @@ else{
 register("step", () => {
     let openedInventory = Player?.getContainer()?.getName()?.toString()
     if (openedInventory === "Trophy Fishing") {
-        let inventorySize = Player?.getContainer()?.getSize() - 36
+        //let inventorySize = Player?.getContainer()?.getSize() - 36
         for (i = 10; i < 32; i++) {
             let item = Player?.getContainer()?.getStackInSlot(i)
             let itemName = ChatLib.removeFormatting(item?.getName()?.toString())
             if (itemName === "" || itemName === " ") continue
-            if (TROPHYFISHES.find(fish => fish.name === itemName)) {
-                let fish = TROPHYFISHES.find(fish => fish.name === itemName)
-                item.getLore().forEach(lore => {
-                    let nFLore = ChatLib.removeFormatting(lore)
-                    if (nFLore.includes("Bronze ✔"))
-                        fish.bronze = true
-                    if (nFLore.includes("Silver ✔"))
-                        fish.silver = true
-                    if (nFLore.includes("Gold ✔"))
-                        fish.gold = true
-                    if (nFLore.includes("Diamond ✔"))
-                        fish.diamond = true
-                })
-            }
+            
+            let fish = getFishByName(itemName)
+            item.getLore().forEach(lore => {
+                let nFLore = ChatLib.removeFormatting(lore)
+                if (nFLore.includes("Bronze ✔"))
+                    fish.bronze.caught = true
+                if (nFLore.includes("Silver ✔"))
+                    fish.silver.caught = true
+                if (nFLore.includes("Gold ✔"))
+                    fish.gold.caught = true
+                if (nFLore.includes("Diamond ✔"))
+                    fish.diamond.caught = true
+            })
         }
+        saveData()
     }
-    saveData()
 }).setFps(3)
 
 //Module commands
@@ -85,38 +88,37 @@ register("command", (arg0) => {
     //write missing trophyFishes to chat
     if (arg0.toLowerCase() === "missing") {
         ChatLib.chat("\n")
-        ChatLib.chat(ChatLib.getCenteredText(" &6&lMISSING TROPHY FISHES&f"))
+        ChatLib.chat(ChatLib.getCenteredText(" &6&lMISSING TROPHY FISH&f"))
         ChatLib.chat("")
         checkForMissingFishes()
+    }
+
+    //Show obtained TrophyFish count
+    if(arg0.toLowerCase() === "count"){
+        ChatLib.chat("\n")
+        ChatLib.chat(ChatLib.getCenteredText(" &6&lOBTAINED TROPHY FISH COUNTER&f"))
+        for (var fishKey in TROPHYFISHES){
+            let count = ` >${TROPHYFISHES[fishKey].name} &8[${TROPHYFISHES[fishKey].bronze.count}] &7[${TROPHYFISHES[fishKey].silver.count}] &6[${TROPHYFISHES[fishKey].gold.count}] &b[${TROPHYFISHES[fishKey].diamond.count}]`
+            ChatLib.chat(count)
+        }
     }
 }).setName("trophyfishhelper").setAliases("tfh", "tf")
 
 register("chat", (message) => {
     if (message.includes("TROPHY FISH! You caught a ")){
         const FISHnRARITY = message.slice(26)
-        const FISH = FISHnRARITY.slice(0, FISHnRARITY.lastIndexOf(" "))
+        const FISHNAME = FISHnRARITY.slice(0, FISHnRARITY.lastIndexOf(" "))
         const RARITY = FISHnRARITY.slice(FISHnRARITY.lastIndexOf(" ")+1, FISHnRARITY.indexOf("."))
+        var updatedRarity = ChatLib.removeFormatting(RARITY).toLowerCase()
 
-        let fish = TROPHYFISHES.find(fish => fish.name === FISH)
-        if(ChatLib.removeFormatting(RARITY).toLowerCase() == "bronze")
-            if(!fish.bronze){
-                fish.bronze = true
-                saveData()
-            }
-        if(ChatLib.removeFormatting(RARITY).toLowerCase() == "silver")
-            if(!fish.silver){
-                fish.silver = true
-                saveData()
-            }
-        if(ChatLib.removeFormatting(RARITY).toLowerCase() == "gold")
-            if(!fish.gold){
-                fish.gold = true
-                saveData()
-            }
-        if(ChatLib.removeFormatting(RARITY).toLowerCase() == "diamond")
-            if(!fish.diamond){
-                fish.diamond = true
-                saveData()
-            }
+        var fish = getFishByName(FISHNAME)
+        fish[updatedRarity].count += 1
+        if (!fish[updatedRarity].caught) 
+        {
+            fish[updatedRarity].caught = true
+        }      
+        saveData()
     }
 }).setCriteria("${message}")
+
+// TODO: add GUI
